@@ -3,7 +3,7 @@ project(CV06)
 
 # add libs you need
 set(OpenCV_LIBS opencv_core opencv_imgproc opencv_highgui opencv_imgcodecs opencv_calib3d opencv_viz)
-set(SRC cli.h colors.h timer.h)
+set(SRC cli.h colors.h timer.h aabb.cpp aabb.h camera.cpp camera.h cell.cpp cell.h intersection.cpp intersection.h matrix4x4.cpp matrix4x4.h ray.cpp ray.h stdafx.cpp stdafx.h vector3.cpp vector3.h volume.cpp volume.h)
 
 add_executable(${PROJECT_NAME} ${SRC} main.cpp)
 
