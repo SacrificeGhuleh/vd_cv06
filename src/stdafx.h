@@ -2,6 +2,7 @@
 
 #define NOMINMAX
 #define _CRT_SECURE_NO_WARNINGS
+#define NDEBUG
 
 #include <cassert>
 #include <cstdio>

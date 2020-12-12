@@ -41,8 +41,19 @@ Vector3 Cell::GradGamma(const Vector3 &uvw) const {
 
 float Cell::Integrate(Ray &ray, const float t0, const float t1) const {
   // TODO approximate computation of an integral of scalar values along the given segment of the ray
+  float integrationResult = 0.f;
   
-  return 0.0f;
+  // Number of samples for integration computation
+  const int integResolution = 10;
+  // Delta of sample
+  const float dt = (1.0f / integResolution) * (t1 - t0);
+  for (int i = 0; i < integResolution; i++) {
+    const float t = t0 + (i * dt);
+    const float f = Gamma(u(ray.eval(t)));
+    integrationResult += f * dt;
+  }
+  
+  return integrationResult;
 }
 
 float Cell::FindIsoSurface(Ray &ray, const float t0, const float t1, const float iso_value) const {

@@ -311,9 +311,9 @@ void Volume::Raycast(Camera &camera, const int samples) {
             sample_alpha = 1.0f;
             
             // TODO TASK 1: integrate along the ray
-            /*const float value = actual_cell.Integrate( ray, cell_hit.t_0, cell_hit.t_1 );
-            sample_color += Vector3( value, value, value );
-            sample_alpha = 0.01f;*/
+            const float value = actual_cell.Integrate(ray, cell_hit.t_0, cell_hit.t_1);
+            sample_color += Vector3(value, value, value);
+            sample_alpha = 0.01f;
             
             // TODO TASK 2: find iso surface
             /*const float t_hit = actual_cell.FindIsoSurface( ray, cell_hit.t_0, cell_hit.t_1, 0.30f );

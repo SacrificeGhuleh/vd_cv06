@@ -46,6 +46,10 @@ struct CellHit {
 public:
   CellHit(CellIndices &indices, const float t_0, const float t_1) {
     assert((t_0 >= 0.0f) && (t_1 >= t_0));
+//    if ((t_0 >= 0.0f) && (t_1 >= t_0)) return;
+    if ((t_0 >= 0.0f) && (t_1 >= t_0)) {
+      assert((t_0 >= 0.0f) && (t_1 >= t_0));
+    }
     // pokuď je t_0 == t_1, pak to prochází jen rohem buňky a ta může být přeskočena
     
     this->indices = indices;
