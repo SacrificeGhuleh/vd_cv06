@@ -9,6 +9,13 @@
 #include "cell.h"
 #include "camera.h"
 
+enum class Projection {
+  MaxIntensity,
+  Integration,
+  Lambert,
+  FrontToBack
+};
+
 float Random(const float range_min = 0.0f, const float range_max = 1.0f);
 
 #define CACHE_LINE_SIZE 64
@@ -45,11 +52,8 @@ public:
 struct CellHit {
 public:
   CellHit(CellIndices &indices, const float t_0, const float t_1) {
-    assert((t_0 >= 0.0f) && (t_1 >= t_0));
-//    if ((t_0 >= 0.0f) && (t_1 >= t_0)) return;
-    if ((t_0 >= 0.0f) && (t_1 >= t_0)) {
-      assert((t_0 >= 0.0f) && (t_1 >= t_0));
-    }
+    assert((t_1 >= t_0));
+    assert((t_0 >= 0.0f));
     // pokuď je t_0 == t_1, pak to prochází jen rohem buňky a ta může být přeskočena
     
     this->indices = indices;
@@ -92,7 +96,7 @@ public:
   
   void Traverse(Ray &ray, std::vector<CellHit> &traversed_cells);
   
-  void Raycast(Camera &camera, const int samples = 1);
+  void Raycast(Camera &camera, const int samples, const Projection projection, const std::string &filename);
 
 protected:
   int offset(const int i, const int j, const int k) const;

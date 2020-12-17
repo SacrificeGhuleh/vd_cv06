@@ -34,9 +34,53 @@ float Cell::Gamma(const Vector3 &uvw) const {
 }
 
 Vector3 Cell::GradGamma(const Vector3 &uvw) const {
-  // TODO compute the gradient of the scalar field here (use finite central differences or Sobel–Feldman operator)
+//  const int sobelX[3][3] = {
+//      {1, 0, -1},
+//      {2, 0, -2},
+//      {1, 0, -1}
+//  };
+//
+//  const int sobelY[3][3] = {
+//      {1,  2,  1},
+//      {0,  0,  0},
+//      {-1, -2, -1}
+//  };
+//
+//  const std::pair<int, int> positions[3][3] = {
+//      {{-1, -1}, {0, -1}, {1, -1}},
+//      {{-1, -0}, {0, -0}, {1, 0}},
+//      {{-1, -1}, {0, -1}, {1, 1}},
+//  };
+//
+//  Vector3 Gx(0, 0, 0);
+//  Vector3 Gy(0, 0, 0);
+//
+//  for (int row = 0; row < 3; row++) {
+//    for (int col = 0; col < 3; col++) {
+//      const std::pair<int, int> pos = positions[col][row];
+//      const int xSobelVal = sobelX[col][row];
+//      const int ySobelVal = sobelY[col][row];
+//
+//
+//    }
+//  }
   
-  return Vector3();
+  const float derivativeDistance = 0.001f;
+  
+  const float x1 = Gamma(uvw - Vector3(derivativeDistance, .0f, .0f));
+  const float x2 = Gamma(uvw - Vector3(-derivativeDistance, .0f, .0f));
+  const float y1 = Gamma(uvw - Vector3(.0f, derivativeDistance, .0f));
+  const float y2 = Gamma(uvw - Vector3(.0f, -derivativeDistance, .0f));
+  const float z1 = Gamma(uvw - Vector3(.0f, .0f, derivativeDistance));
+  const float z2 = Gamma(uvw - Vector3(.0f, .0f, -derivativeDistance));
+  
+  const float dx = x1 - x2;
+  const float dy = y1 - y2;
+  const float dz = z1 - z2;
+  
+  Vector3 normal = Vector3(dx, dy, dz) * (1.0f / (2.0f * derivativeDistance));
+  normal.Normalize();
+  return normal;
 }
 
 float Cell::Integrate(Ray &ray, const float t0, const float t1) const {
@@ -58,8 +102,16 @@ float Cell::Integrate(Ray &ray, const float t0, const float t1) const {
 
 float Cell::FindIsoSurface(Ray &ray, const float t0, const float t1, const float iso_value) const {
   // TODO find the parametric distance of the iso surface of the certain iso value along the given segment of the ray
-  
-  return -1.0f;
+  const float dt = 0.01f;
+  float t = t0;
+  while (t < t1) {
+    const float f = Gamma(u(ray.eval(t)));
+    if (f > iso_value) {
+      return t;
+    }
+    t += dt;
+  }
+  return -1.f;
 }
 
 Vector3 Cell::u(const Vector3 &p) const {

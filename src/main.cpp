@@ -14,13 +14,16 @@ int main(int argc, char *argv[]) {
   volume.Load(filenameMask, 1, 150); // 0, #slices-1
   
   // Test 2
-  /*const int n = 512;
-  Volume volume( n, n, n, Vector3( 500.0f / n, 500.0f / n, 500.0f / n ) );
-  volume.Generate();*/
+//  const int n = 512;
+//  Volume volume(n, n, n, Vector3(500.0f / n, 500.0f / n, 500.0f / n));
+//  volume.Generate();
   
   Camera camera = Camera(Vector3(500.0f, 400.0f, 1300.0f) * 0.3f, Vector3(0.0f, 0.0f, 0.0f), 640, 480, DEG2RAD(40.0f));
   
-  volume.Raycast(camera, 1); // with super sampling
+  volume.Raycast(camera, 1, Projection::MaxIntensity, "MaxIntensity"); // with super sampling
+  volume.Raycast(camera, 1, Projection::Integration, "Integration"); // with super sampling
+//  volume.Raycast(camera, 1, Projection::Lambert, "Lambert"); // with super sampling
+//  volume.Raycast(camera, 1, Projection::FrontToBack, "FrontToBack"); // with super sampling
   
   return 0;
 }

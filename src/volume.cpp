@@ -201,7 +201,7 @@ void Volume::Traverse(Ray &ray, std::vector<CellHit> &traversed_cells) {
           t_1 = t_max.x;
           t_max.x += delta.x;
           //printf( "<%0.3f, %0.3f> in [%d, %d, %d]\n", t_0, t_1, actual_cell_indices.i, actual_cell_indices.j, actual_cell_indices.k ); // tady známe aktuální interval <t_0, t_1> nad (i, j, k)-tou buňkou
-          if (t_0 < t_1) traversed_cells.push_back(CellHit(actual_cell_indices, t_0, t_1));
+          if (t_0 > 0 && t_0 < t_1) traversed_cells.push_back(CellHit(actual_cell_indices, t_0, t_1));
           actual_cell_indices.i += next_cell_indices.i; // protnuli jsme levou, resp. pravou, stěnu buňky, takže pokračujeme levou, resp. pravou, buňkou
           if ((actual_cell_indices.i < 0) || (actual_cell_indices.i >= n_ - 1)) is_inside = false; // nebo is_inside &= ( ( i >= 0 ) && ( i < volume_i ) );
           break;
@@ -210,7 +210,7 @@ void Volume::Traverse(Ray &ray, std::vector<CellHit> &traversed_cells) {
           t_1 = t_max.y;
           t_max.y += delta.y;
           //printf( "<%0.3f, %0.3f> in [%d, %d, %d]\n", t_0, t_1, actual_cell_indices.i, actual_cell_indices.j, actual_cell_indices.k ); // tady známe aktuální interval <t_0, t_1> nad (i, j, k)-tou buňkou
-          if (t_0 < t_1) traversed_cells.push_back(CellHit(actual_cell_indices, t_0, t_1));
+          if (t_0 > 0 && t_0 < t_1) traversed_cells.push_back(CellHit(actual_cell_indices, t_0, t_1));
           actual_cell_indices.j += next_cell_indices.j;
           if ((actual_cell_indices.j < 0) || (actual_cell_indices.j >= width_ - 1)) is_inside = false;
           break;
@@ -219,7 +219,7 @@ void Volume::Traverse(Ray &ray, std::vector<CellHit> &traversed_cells) {
           t_1 = t_max.z;
           t_max.z += delta.z;
           //printf( "<%0.3f, %0.3f> in [%d, %d, %d]\n", t_0, t_1, actual_cell_indices.i, actual_cell_indices.j, actual_cell_indices.k ); // tady známe aktuální interval <t_0, t_1> nad (i, j, k)-tou buňkou
-          if (t_0 < t_1) traversed_cells.push_back(CellHit(actual_cell_indices, t_0, t_1));
+          if (t_0 > 0 && t_0 < t_1) traversed_cells.push_back(CellHit(actual_cell_indices, t_0, t_1));
           actual_cell_indices.k += next_cell_indices.k;
           if ((actual_cell_indices.k < 0) || (actual_cell_indices.k >= height_ - 1)) is_inside = false;
           break;
@@ -239,20 +239,21 @@ int Volume::offset(const int i, const int j, const int k) const {
   return (width_step_ * height_ * i) + (j) + ((height_ - 1 - k) * width_step_);
 }
 
-void Volume::Raycast(Camera &camera, const int samples) {
+void Volume::Raycast(Camera &camera, const int samples, const Projection projection, const std::string &filename) {
   printf("Start ray casting...\n");
   
-  cv::namedWindow("Render", cv::WINDOW_NORMAL);
-  cv::moveWindow("Render", 0, 0);
+  cv::namedWindow(filename, cv::WINDOW_NORMAL);
+  cv::moveWindow(filename, 0, 0);
   cv::Mat image = cv::Mat(cv::Size(camera.width(), camera.height()),
                           CV_32FC3, cv::Scalar(0, 0, 0));
-  cv::resizeWindow("Render", image.cols * 2, image.rows * 2);
-  cv::imshow("Render", image);
+  cv::resizeWindow(filename, image.cols * 2, image.rows * 2);
+  cv::imshow(filename, image);
   cv::waitKey(10);
   
   const int no_threads = omp_get_max_threads();
   omp_set_num_threads(no_threads);
-  std::vector<CellHit> *traversed_cells = new std::vector<CellHit>[no_threads];
+  std::vector<std::vector<CellHit>> traversed_cells;
+  traversed_cells.resize(no_threads);
   
   const float ds = 1 / static_cast< float >( samples ); // jittered sampling
   
@@ -260,8 +261,11 @@ void Volume::Raycast(Camera &camera, const int samples) {
   
   int y;
   int no_rays = 0;
+  
+  const Vector3 lightPos = Vector3(100, 100, 100);
+//  const Vector3 lightPos = camera.eye();
 
-#pragma omp parallel for schedule( dynamic, 8 ) default( none ) private( y ) shared( camera, no_rays, traversed_cells, image, ds, samples)
+#pragma omp parallel for schedule( dynamic, 8 ) default( none ) private( y ) shared( camera, no_rays, traversed_cells, image, ds, samples, lightPos, projection, filename)
   for (y = 0; y < camera.height(); ++y)
     //y = 500;
   {
@@ -279,7 +283,8 @@ void Volume::Raycast(Camera &camera, const int samples) {
       
       for (int ym = 0; ym < samples; ++ym) {
         for (int xm = 0; xm < samples; ++xm) {
-          Vector3 sample_color;
+          Vector3 sample_color = Vector3(0.f);
+          Vector3 sample_normal = Vector3(0.f);
           float sample_alpha = 0.0f;
           
           const float ksi1 = ((samples > 1) ? Random() : static_cast< float >( 0.5 ));
@@ -294,7 +299,7 @@ void Volume::Raycast(Camera &camera, const int samples) {
           
           if (no_rays % 5000 == 0) {
             printf("\r%0.1f %%", (100.0 * no_rays) / (camera.width() * camera.height() * SQR(samples)));
-            cv::imshow("Render", image);
+            cv::imshow(filename, image);
             cv::waitKey(1);
           }
           
@@ -304,33 +309,55 @@ void Volume::Raycast(Camera &camera, const int samples) {
             CellHit &cell_hit = traversed_cells[tid][i];
             Cell actual_cell = cell(cell_hit.indices);
             
-            // TASK 0: maximum intensity projection (MIP)
-            for (float t = cell_hit.t_0; t <= cell_hit.t_1; t += 0.1f) {
-              sample_color.x = sample_color.y = sample_color.z = MAX(sample_color.x, actual_cell.Gamma(actual_cell.u(ray.eval(t))));
-            }
-            sample_alpha = 1.0f;
-            
-            // TODO TASK 1: integrate along the ray
-            const float value = actual_cell.Integrate(ray, cell_hit.t_0, cell_hit.t_1);
-            sample_color += Vector3(value, value, value);
-            sample_alpha = 0.01f;
-            
-            // TODO TASK 2: find iso surface
-            /*const float t_hit = actual_cell.FindIsoSurface( ray, cell_hit.t_0, cell_hit.t_1, 0.30f );
-            if ( t_hit > 0.0f )
-            {
-              const Vector3 p = ray.eval( t_hit );
+            switch (projection) {
+              case Projection::MaxIntensity: {
+                // TASK 0: maximum intensity projection (MIP)
+                for (float t = cell_hit.t_0; t <= cell_hit.t_1; t += 0.1f) {
+                  sample_color.x = sample_color.y = sample_color.z = std::max(sample_color.x, actual_cell.Gamma(actual_cell.u(ray.eval(t))));
+                }
+                sample_alpha = 1.0f;
+                
+                break;
+              }
               
-              // TODO FOR POINT p: COMPUTE GRADIENT -> NORMAL -> LAMBERT SHADING + OMNI LIGHT -> SURFACE COLOR
-
-              sample_color += SURFACE COLOR;
-              sample_alpha = 1.0f;
-
-              break;
-            }*/
-            
-            // TODO TASK 3: DVR in front-to-back order
-            //actual_cell.FrontToBack( ray, cell_hit.t_0, cell_hit.t_1, sample_color, sample_alpha );
+              case Projection::Integration: {
+                // TASK 1: integrate along the ray
+                const float value = actual_cell.Integrate(ray, cell_hit.t_0, cell_hit.t_1);
+                sample_color += Vector3(value);
+                sample_alpha = 0.01f;
+                break;
+              }
+              
+              case Projection::Lambert: {
+                // TODO TASK 2: find iso surface
+                const float t_hit = actual_cell.FindIsoSurface(ray, cell_hit.t_0, cell_hit.t_1, 0.1f);
+                if (t_hit > 0.0f) {
+                  const Vector3 p = ray.eval(t_hit);
+                  Vector3 n = actual_cell.GradGamma(ray.eval(t_hit));
+                  n.Normalize();
+                  
+                  Vector3 L = lightPos - p;
+                  L.Normalize();
+                  
+                  float dotProduct = L.DotProduct(n);
+                  
+                  Vector3 color = Vector3(std::max(0.f, dotProduct));
+                  
+                  // TODO FOR POINT p: COMPUTE GRADIENT -> NORMAL -> LAMBERT SHADING + OMNI LIGHT -> SURFACE COLOR
+                  
+                  sample_color += color;
+//                  sample_color += n;
+                  sample_alpha = 1.0f;
+//                  i = traversed_cells[tid].size(); // to break outer loop
+                }
+                break;
+              }
+              case Projection::FrontToBack: {
+                // TODO TASK 3: DVR in front-to-back order
+                //actual_cell.FrontToBack( ray, cell_hit.t_0, cell_hit.t_1, sample_color, sample_alpha );
+                break;
+              }
+            }
           }
           
           pixel_color += sample_color * sample_alpha;
@@ -346,9 +373,9 @@ void Volume::Raycast(Camera &camera, const int samples) {
   
   printf("\r%0.3f s\n", (t1 - t0) * 1);
   
-  cv::imshow("Render", image);
-  cv::imwrite("output.png", image * 255);
-  cv::waitKey(0);
+  cv::imshow(filename, image);
+  cv::imwrite(filename + ".png", image * 255);
+//  cv::waitKey(0);
   
   cv::destroyAllWindows();
 }

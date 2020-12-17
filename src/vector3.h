@@ -51,6 +51,8 @@ public:
   */
   Vector3(const float x, const float y, const float z) : x(x), y(y), z(z) {}
   
+  Vector3(const float xyz) : x(xyz), y(xyz), z(xyz) {}
+  
   //! L2-norma vektoru.
   /*!
   \return x Hodnotu \f$\mathbf{||v||}=\sqrt{x^2+y^2+z^2}\f$.
